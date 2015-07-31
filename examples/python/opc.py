@@ -35,6 +35,7 @@ Recommended use:
 
 import socket
 import struct
+import sys
 
 class Client(object):
 
@@ -147,13 +148,21 @@ class Client(object):
         # build OPC message
         len_hi_byte = int(len(pixels)*3 / 256)
         len_lo_byte = (len(pixels)*3) % 256
-        header = chr(channel) + chr(0) + chr(len_hi_byte) + chr(len_lo_byte)
-        pieces = [header] + [ struct.pack( "BBB",
+        command = 0  # set pixel colors from openpixelcontrol.org
+
+        header = struct.pack("BBBB", channel, command, len_hi_byte, len_lo_byte)
+
+        pieces = [ struct.pack( "BBB",
                      min(255, max(0, int(r))),
                      min(255, max(0, int(g))),
                      min(255, max(0, int(b)))) for r, g, b in pixels ]
 
-        message = ''.join(pieces)
+        if sys.version_info[0] == 3:
+            # bytes!
+            message = header + b''.join(pieces)
+        else:
+            # strings!
+            message = header + ''.join(pieces)
 
         self._debug('put_pixels: sending pixels to server')
         try:

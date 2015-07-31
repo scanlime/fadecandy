@@ -180,3 +180,5 @@ Enttec DMX devices use a different format for their mapping objects:
     * Map a single OPC pixel to a single DMX channel
     * The "Pixel color" can be "r", "g", or "b" to sample a single color channel from the pixel, or "l" to use an average luminosity.
     * DMX channels are numbered from 1 to 512.
+* [ *Value*, *DMX Channel* ]
+    * Map a constant value to a DMX channel; good for configuration modes

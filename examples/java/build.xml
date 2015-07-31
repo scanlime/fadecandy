@@ -1,0 +1,35 @@
+<project name="java-opc" default="dist" basedir=".">
+
+	<property name="src.dir" location="${basedir}/src" description="Directory of all Java source files" />
+	<property name="build.dir" location="${basedir}/target/classes" description="Directory for intermediate compiled files" />
+	<property name="dist.dir" location="${basedir}/target" description="Directory for final distribution file" />
+
+	<target name="init">
+		<tstamp />
+		<mkdir dir="${build.dir}" />
+	</target>
+
+	<target name="compile" depends="init" description="compile the source ">
+		<javac srcdir="${src.dir}" destdir="${build.dir}" includeantruntime="true" source="1.7">
+			<classpath>
+				<pathelement location="${build.dir}" />
+				<pathelement location="${networktables.jar}" />
+			</classpath>
+		</javac>
+	</target>
+
+	<target name="dist" depends="compile" description="generate the distribution">
+		<mkdir dir="${dist.dir}" />
+		<jar jarfile="${dist.dir}/${ant.project.name}.jar" basedir="${build.dir}">
+			<manifest>
+				<attribute name="Main-Class" value="opc.OpcClient" />
+			</manifest>
+		</jar>
+	</target>
+
+	<target name="clean" description="clean up">
+		<delete dir="${build.dir}" />
+		<delete dir="${dist.dir}" />
+	</target>
+
+</project>

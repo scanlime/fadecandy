@@ -317,6 +317,21 @@ void EnttecDMXDevice::opcMapPixelColors(const OPC::Message &msg, const Value &in
         }
     }
 
+    if (inst.IsArray() && inst.Size() == 2) {
+        // Constant value
+
+        const Value &vValue = inst[0u];
+        const Value &vDMXChannel = inst[1];
+
+        if (vValue.IsUint() && vDMXChannel.IsUint()) {
+            unsigned value = vValue.GetUint();
+            unsigned dmxChannel = vDMXChannel.GetUint();
+
+            setChannel(dmxChannel, value);
+            return;
+        }
+    }
+
     // Still haven't found a match?
     if (mVerbose) {
         rapidjson::GenericStringBuffer<rapidjson::UTF8<> > buffer;
