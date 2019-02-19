@@ -41,7 +41,9 @@ Warning:  Pixel order must be set to 'grb' !
 
 import opc, time
 
-numLEDs = 48
+sk_numLEDs = 48
+ws_numLEDs = int(sk_numLEDs / 3 * 4)
+
 client = opc.Client('localhost:7890')
 
 
@@ -94,7 +96,7 @@ while True:
 
     pixels = []  # RGB map
 
-    for i in range(64):
+    for i in range(ws_numLEDs):
         pixel = []
         for j in range(3):
             pixel.append(pixel_data.get(i * 3 + j, 0))
@@ -103,8 +105,8 @@ while True:
 
     client.put_pixels(pixels)
 
-    # continuous walk over all pixels
-    if pixel_loop < 47:
+    # continuous walk over all sk_pixels
+    if pixel_loop < sk_numLEDs:
         pixel_loop += 1
     else:
         pixel_loop = 0
