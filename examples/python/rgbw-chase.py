@@ -1,4 +1,4 @@
-#!/usr/bin/env python
+#!/usr/bin/env python3
 
 """
 (2019) Gabriel Wolf (gabriel.wolf@wolfzeit.com)
@@ -6,76 +6,75 @@ This example code is released into the public domain.
 
 Problem:  We want to use SK6812 RGBW stripes with FadeCandy.
 Solution: We fake WS2812 RGB stripes.
-Infos:    1. Total pixel count is reduced from 64 to 48
-             per channel, due to one more (W) diode per pixel.
-          2. No support for FadeCandys white point feature anymore.
-Warning:  Pixel order must be set to 'grb' !
+Infos:    - Total pixel count per channel is reduced from 64 to 48,
+            due to one more (W) diode per pixel.
+          - No support for FadeCandys white point feature anymore.
+          - Pixel order must be set to 'grb'.
+Usage:    sk_stripe = RGBW(sk_numLEDs)                   # create object
+          sk_stripe.set_rgbw_pixel(sk_pixel, r, g, b, w) # set pixel
+          pixels = sk_stripe.get_pixels()                # get values
+          client.put_pixels(pixels)                      # pass to FadeCandy
 
+          Internally RGBW pixels are mapped to 3-tuples of RGB pixels.
+          Let's look at the first three pixels:
 
-==== contract ==== sk2ws(sk_pixel, r, g, b, w)
+          R    G    B    W                     R    G    B
+          .    .    .    .                     .    .    .
+      1 - 0    1    2    3                     0    1    2
+      2 - 4    5    6    7        become       3    4    5
+      3 - 8    9    10   11                    6    7    8
+                                               9    10   11
 
-     == precondition ==
-     sk_pixel := int [0, 47]     --- index of a SK6812 RGBW pixel
-     r, g, b, w := int [0, 255]  --- 8 bit color values
-
-     == postcondition ==
-     { r_pos : r,
-       g_pos : g,
-       b_pos : b,
-       w_pos : w  }
-
-     The function returns a dictionary, that maps every given color to an
-     absolute position within 3-tuples of a supported RGB stripe. That way
-     you can transparently work with pixels and individual colors.
-
-     Let's look on the first three RGBW pixels:
-
-     R    G    B    W                     R    G    B
-     ·    ·    ·    ·                     ·    ·    ·
- 1 > 0    1    2    3                     0    1    2
- 2 > 4    5    6    7        become       3    4    5
- 3 > 8    9    10   11                    6    7    8
-     ↓    ↓    ↓    ↓                     9    10   11
-                                          ↓    ↓    ↓
 """
 
-import opc, time
+import opc
+import time
+import numpy as np
 
-sk_numLEDs = 48
-ws_numLEDs = int(sk_numLEDs / 3 * 4)
+sk_numLEDs = 144
 
 client = opc.Client('localhost:7890')
 
 
-def sk2ws(sk_pixel, r, g, b, w):
-    ws_pixel_start = int(round((sk_pixel + (sk_pixel - 1) / 3), 0))
+class RGBW(object):
+    def __init__(self, sk_pixel_count='48'):
+        self.internal_pixel_count = int(sk_pixel_count / 3 * 4)
+        self.absolute_diode_count = sk_pixel_count * 4
+        self.absolute_diode_values = np.zeros(
+            self.absolute_diode_count,
+            dtype=int
+        )
 
-    # get relative positions of colors in 3-tuples
-    g_pos = ((sk_pixel + 0) % 3)
-    r_pos = ((sk_pixel + 1) % 3)
-    b_pos = ((sk_pixel + 2) % 3)
-    w_pos = ((sk_pixel + 3) % 3)
+    def set_rgbw_pixel(self, sk_pixel, r, g, b, w):
+        i = int(round((sk_pixel + (sk_pixel - 1) / 3), 0))  # RGB pixel index
 
-    # make them absolute positions
-    # ----- red -----
-    if (sk_pixel + 1) % 3 == 0:
-        r_pos = (ws_pixel_start + 1) * 3 + r_pos
-    else:
-        r_pos = ws_pixel_start * 3 + r_pos
+        # get relative positions of diodes in internal 3-tuples
+        g_pos = ((sk_pixel + 0) % 3)
+        r_pos = ((sk_pixel + 1) % 3)
+        b_pos = ((sk_pixel + 2) % 3)
+        w_pos = ((sk_pixel + 3) % 3)
 
-    # ----- green -----
-    g_pos = ws_pixel_start * 3 + g_pos
+        # make them absolute positions
+        r_pos = ((i + 1) * 3 + r_pos if (sk_pixel + 1) % 3 == 0 else i * 3 + r_pos)
+        g_pos = i * 3 + g_pos
+        b_pos = (i * 3 + b_pos if sk_pixel % 3 == 0 else (i + 1) * 3 + b_pos)
+        w_pos = (i + 1) * 3 + w_pos
 
-    # ----- blue -----
-    if sk_pixel % 3 == 0:
-        b_pos = ws_pixel_start * 3 + b_pos
-    else:
-        b_pos = (ws_pixel_start + 1) * 3 + b_pos
+        self.absolute_diode_values[r_pos] = r
+        self.absolute_diode_values[g_pos] = g
+        self.absolute_diode_values[b_pos] = b
+        self.absolute_diode_values[w_pos] = w
 
-    # ----- white -----
-    w_pos = (ws_pixel_start + 1) * 3 + w_pos
+    def get_pixels(self):
+        internal_pixels = []
+        for i in range(self.internal_pixel_count):
+            internal_pixel = []
+            for j in range(3):
+                internal_pixel.append(self.absolute_diode_values[i * 3 + j])
 
-    return {r_pos: r, g_pos: g, b_pos: b, w_pos: w}
+            internal_pixels.append(tuple(internal_pixel))
+
+        return internal_pixels
 
 
 # A simple test: walk over all pixels and loop over all diodes
@@ -84,29 +83,22 @@ pixel_loop = 0
 diode_loop = 0
 
 while True:
+    sk_stripe = RGBW(sk_numLEDs)
+
     # select actual pixel and diode
     if diode_loop is 0:
-        pixel_data = sk2ws(pixel_loop, 128, 0, 0, 0)
+        sk_stripe.set_rgbw_pixel(pixel_loop, 128, 0, 0, 0)
     elif diode_loop is 1:
-        pixel_data = sk2ws(pixel_loop, 0, 128, 0, 0)
+        sk_stripe.set_rgbw_pixel(pixel_loop, 0, 128, 0, 0)
     elif diode_loop is 2:
-        pixel_data = sk2ws(pixel_loop, 0, 0, 128, 0)
+        sk_stripe.set_rgbw_pixel(pixel_loop, 0, 0, 128, 0)
     elif diode_loop is 3:
-        pixel_data = sk2ws(pixel_loop, 0, 0, 0, 128)
+        sk_stripe.set_rgbw_pixel(pixel_loop, 0, 0, 0, 128)
 
-    pixels = []  # RGB map
+    client.put_pixels(sk_stripe.get_pixels())
 
-    for i in range(ws_numLEDs):
-        pixel = []
-        for j in range(3):
-            pixel.append(pixel_data.get(i * 3 + j, 0))
-
-        pixels.append(tuple(pixel))
-
-    client.put_pixels(pixels)
-
-    # continuous walk over all sk_pixels
-    if pixel_loop < sk_numLEDs:
+    # continuous walk over all pixels
+    if pixel_loop < sk_numLEDs - 1:
         pixel_loop += 1
     else:
         pixel_loop = 0
