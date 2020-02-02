@@ -42,8 +42,8 @@ CXXFLAGS += -DFCSERVER_VERSION=$(VERSION)
 
 ifeq ($(UNAME), Darwin)
 	# Mac OS X (32-bit build)
-	LDFLAGS += -m32
-	CPPFLAGS += -m32 -DHAVE_POLL_H
+	LDFLAGS += -m64
+	CPPFLAGS += -m64 -DHAVE_POLL_H
 
 	ifeq ("$(shell which llvm-gcc)", "")
 		# We want to support all the way back to OS 10.6 (Snow Leopard), which used gcc
