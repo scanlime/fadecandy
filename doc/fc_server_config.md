@@ -104,11 +104,13 @@ Fadecandy Devices
 Supported mapping objects for Fadecandy devices:
 
 * [ *OPC Channel*, *First OPC Pixel*, *First output pixel*, *Pixel count* ]
-    * Map a contiguous range of pixels from the specified OPC channel to the current device
-    * For Fadecandy devices, output pixels are numbered from 0 through 511. Strand 1 begins at index 0, strand 2 begins at index 64, etc.
+    * OPC Channel - Individual Channel on this server, offered to the OPC clients 
+    * First OPC Pixel - pixel ID _per OPC channel_ 0-512 for 1 channel
+    * First Output Pixel - for FadeCandy devices, numbered from 0 through 511. Strand 1 begins at index 0, strand 2 begins at index 64, etc.
+    * Pixel Count - Number of pixels supported on this channel
 * [ *OPC Channel*, *First OPC Pixel*, *First output pixel*, *Pixel count*, *Color channels* ]
     * As above, but the mapping between color channels and WS2811 output channels can be changed.
-    * The "Color channels" must be a 3-letter string, where each letter corresponds to one of the WS2811 outputs.
+    * Color channel - must be a 3-letter string, where each letter corresponds to one of the WS2811 outputs.
     * Each letter can be "r", "g", or "b" to choose the red, green, or blue channel respectively, or "l" to use the average luminosity.
 
 If the pixel count is negative, the output pixels are mapped in reverse order starting at the first output pixel index and decrementing the index for each successive pixel up to the absolute value of the pixel count.
@@ -121,7 +123,44 @@ led          | true / false / null  | null    | Is the LED on, off, or under aut
 dither       | true / false         | true    | Is dithering enabled?
 interpolate  | true / false         | true    | Is inter-frame interpolation enabled?
 
-The following example config file supports two Fadecandy devices with distinct serial numbers. They both receive data from OPC channel #0. The first 512 pixels map to the first Fadecandy device. The next 64 pixels map to the entire first strand of the second Fadecandy device, the next 32 pixels map to the beginning of the third strand with the color channels in Blue, Green, Red order, and the next 32 pixels map to the end of the third strand in reverse order.
+Fadecandy Examples
+------------------
+
+The following example config supports _any_ single connected Fadecandy device 
+and provides 4 channels of 128 pixeles each across 2 Strands for a total of 512. 
+Each OPC input channel supports 2 FC Strand outputs. This is convenient when connecting 
+from [OLA via the OpenPixelControl protocol](https://docs.openlighting.org/ola/conf/ola-openpixelcontrol.conf.html) 
+as many DMX tools cannot bridge Universes when addressing a Matrix.
+
+from a single controller. 
+
+    {
+      "listen": [ null, 7890 ],
+      "verbose": true,
+      "color": {
+          "gamma": 2.5,
+          "whitepoint": [ 1.0, 1.0, 1.0 ]
+      },
+      "devices": [
+          {
+              "type": "fadecandy",
+              "map": [
+                  [ 0,   0,   0, 128 ],
+                  [ 1,   0, 128, 128 ],
+                  [ 2,   0, 256, 128 ],
+                  [ 3,   0, 384, 128 ]
+              ]
+          }
+       ]
+    }
+
+
+The following example config file supports two Fadecandy devices with distinct 
+serial numbers. They both receive data from OPC channel #0. The first 512 pixels 
+map to the first Fadecandy device. The next 64 pixels map to the entire first 
+strand of the second Fadecandy device, the next 32 pixels map to the beginning 
+of the third strand with the color channels in Blue, Green, Red order, and the 
+next 32 pixels map to the end of the third strand in reverse order.
 
     {
         "listen": ["127.0.0.1", 7890],
